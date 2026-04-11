@@ -29,7 +29,8 @@
 
         <button
           @click="showDepositDialog = true"
-          class="mt-2 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-xl active:bg-blue-800 sm:hover:bg-blue-700 transition-colors"
+          :disabled="!writeKey"
+          class="mt-2 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-xl active:bg-blue-800 sm:hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Add money
         </button>
@@ -126,7 +127,8 @@
     </div>
     <button
       @click="saveMoney"
-      class="mt-6 w-full py-3 bg-green-600 text-white text-base font-medium rounded-xl active:bg-green-800 sm:hover:bg-green-700 transition-colors"
+      :disabled="!writeKey"
+      class="mt-6 w-full py-3 bg-green-600 text-white text-base font-medium rounded-xl active:bg-green-800 sm:hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >
       Add money
     </button>
