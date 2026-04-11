@@ -52,19 +52,29 @@
             >
               No deposits yet.
             </div>
-            <div
-              v-for="(deposit, i) in weeklyDeposits"
-              :key="i"
-              class="flex justify-between items-center px-3 py-2 text-sm border-b border-gray-100 last:border-0"
-            >
-              <span>{{
-                new Date(deposit.date).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-              }}</span>
-              <span class="font-medium">{{ deposit.amount }} €</span>
+            <div v-for="group in depositsByMonth" :key="group.key">
+              <button
+                @click="toggleMonth(group.key)"
+                class="w-full flex justify-between items-center px-3 py-2 text-sm font-medium bg-gray-50 border-b border-gray-200"
+              >
+                <span class="flex items-center gap-1">
+                  <span>{{ openMonths[group.key] ? "▾" : "▸" }}</span>
+                  <span>{{ group.label }}</span>
+                </span>
+                <span class="text-gray-500"
+                  >{{ group.total.toFixed(2) }} €</span
+                >
+              </button>
+              <div v-if="openMonths[group.key]">
+                <div
+                  v-for="(deposit, i) in group.deposits"
+                  :key="i"
+                  class="flex justify-between items-center px-5 py-2 text-sm border-b border-gray-100 last:border-0 bg-white"
+                >
+                  <span>{{ formatDepositDate(deposit.date) }}</span>
+                  <span class="font-medium">{{ deposit.amount }} €</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -181,7 +191,7 @@ interface MoneyRow {
 
 interface WeeklyDeposit {
   amount: number;
-  date: number;
+  date: number | string;
 }
 
 export default defineComponent({
@@ -196,6 +206,7 @@ export default defineComponent({
       loading: true,
       weeklyDeposits: [] as WeeklyDeposit[],
       depositsOpen: false,
+      openMonths: {} as Record<string, boolean>,
       showDepositDialog: false,
       depositForm: { amount: 0 },
       depositError: "",
@@ -216,6 +227,31 @@ export default defineComponent({
     },
     moneyInRoom(): number {
       return this.weeklyDeposits.reduce((sum, d) => sum + d.amount, 0);
+    },
+    depositsByMonth(): {
+      key: string;
+      label: string;
+      total: number;
+      deposits: WeeklyDeposit[];
+    }[] {
+      const groups: Record<
+        string,
+        { label: string; total: number; deposits: WeeklyDeposit[] }
+      > = {};
+      for (const deposit of this.weeklyDeposits) {
+        const d = new Date(deposit.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const label = d.toLocaleDateString("en-GB", {
+          month: "long",
+          year: "numeric",
+        });
+        if (!groups[key]) groups[key] = { label, total: 0, deposits: [] };
+        groups[key].total += deposit.amount;
+        groups[key].deposits.push(deposit);
+      }
+      return Object.entries(groups)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([key, val]) => ({ key, ...val }));
     },
   },
   mounted() {
@@ -246,6 +282,16 @@ export default defineComponent({
       } catch {
         this.saveError = "Permission denied.";
       }
+    },
+    toggleMonth(key: string) {
+      this.openMonths = { ...this.openMonths, [key]: !this.openMonths[key] };
+    },
+    formatDepositDate(date: number | string): string {
+      return new Date(date).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
     },
     async saveDeposit() {
       this.depositError = "";
