@@ -32,7 +32,7 @@
           :disabled="!writeKey"
           class="mt-2 w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-xl active:bg-blue-800 sm:hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Add money
+          Deposit Weekly Money
         </button>
 
         <div class="mt-2">
@@ -126,11 +126,11 @@
       </section>
     </div>
     <button
-      @click="saveMoney"
+      @click="organizeMonthlyMoney"
       :disabled="!writeKey"
       class="mt-6 w-full py-3 bg-green-600 text-white text-base font-medium rounded-xl active:bg-green-800 sm:hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >
-      Add money
+      Organize Monthly Money
     </button>
 
     <div class="mt-4">
@@ -138,6 +138,62 @@
       <p v-if="saveSuccess" class="mt-2 text-sm text-green-600">
         Saved successfully.
       </p>
+    </div>
+
+    <!-- Organize monthly money dialog -->
+    <div
+      v-if="showOrganizeDialog"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+    >
+      <div
+        class="bg-white rounded-2xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <h2 class="text-lg font-semibold mb-1">Organize Monthly Money</h2>
+        <p class="text-sm text-gray-400 mb-4">Add amounts per currency type</p>
+        <div class="space-y-2 mb-4">
+          <div
+            v-for="row in rowsWithTotal"
+            :key="row.type"
+            class="flex items-center gap-3"
+          >
+            <span class="w-14 shrink-0 text-sm text-gray-600"
+              >{{ row.type }} €</span
+            >
+            <input
+              v-model.number="organizeAmounts[row.type]"
+              type="number"
+              min="0"
+              placeholder="0"
+              class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+          </div>
+        </div>
+        <div
+          class="flex justify-between items-center py-2 mb-4 border-t border-gray-100"
+        >
+          <span class="text-sm font-medium text-gray-700">Total added:</span>
+          <span class="font-bold text-green-700"
+            >{{ organizeTotal.toFixed(2) }} €</span
+          >
+        </div>
+        <p v-if="organizeError" class="mb-3 text-sm text-red-500">
+          {{ organizeError }}
+        </p>
+        <div class="flex gap-3">
+          <button
+            @click="showOrganizeDialog = false"
+            class="flex-1 py-2 border border-gray-300 rounded-xl text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            @click="saveOrganize"
+            class="flex-1 py-2 bg-green-600 text-white rounded-xl text-sm font-medium active:bg-green-800 sm:hover:bg-green-700 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Deposit dialog -->
@@ -184,7 +240,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { db } from "../firebase";
-import { ref, onValue, push } from "firebase/database";
+import { ref, onValue, push, set } from "firebase/database";
 
 interface MoneyRow {
   type: number;
@@ -209,6 +265,9 @@ export default defineComponent({
       weeklyDeposits: [] as WeeklyDeposit[],
       depositsOpen: false,
       openMonths: {} as Record<string, boolean>,
+      showOrganizeDialog: false,
+      organizeAmounts: {} as Record<number, number>,
+      organizeError: "",
       showDepositDialog: false,
       depositForm: { amount: 0 },
       depositError: "",
@@ -226,6 +285,12 @@ export default defineComponent({
     },
     grandTotal(): number {
       return this.rowsWithTotal.reduce((sum, row) => sum + row.total, 0);
+    },
+    organizeTotal(): number {
+      return this.rowsWithTotal.reduce((sum, row) => {
+        const add = this.organizeAmounts[row.type] || 0;
+        return sum + parseFloat((row.type * add).toFixed(2));
+      }, 0);
     },
     moneyInRoom(): number {
       const now = new Date();
@@ -292,6 +357,29 @@ export default defineComponent({
         this.saveSuccess = true;
       } catch {
         this.saveError = "Permission denied.";
+      }
+    },
+    organizeMonthlyMoney() {
+      const amounts: Record<number, number> = {};
+      for (const row of this.rows) {
+        amounts[row.type] = 0;
+      }
+      this.organizeAmounts = amounts;
+      this.organizeError = "";
+      this.showOrganizeDialog = true;
+    },
+    async saveOrganize() {
+      this.organizeError = "";
+      try {
+        const updatedRows = this.rows.map((row) => ({
+          type: row.type,
+          amount: row.amount + (this.organizeAmounts[row.type] || 0),
+        }));
+        const moneyRef = ref(db, "currentMoney/rows");
+        await set(moneyRef, updatedRows);
+        this.showOrganizeDialog = false;
+      } catch {
+        this.organizeError = "Permission denied.";
       }
     },
     toggleMonth(key: string) {
