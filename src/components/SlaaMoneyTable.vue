@@ -226,7 +226,16 @@ export default defineComponent({
       return this.rowsWithTotal.reduce((sum, row) => sum + row.total, 0);
     },
     moneyInRoom(): number {
-      return this.weeklyDeposits.reduce((sum, d) => sum + d.amount, 0);
+      const now = new Date();
+      return this.weeklyDeposits
+        .filter((d) => {
+          const date = new Date(d.date);
+          return (
+            date.getMonth() === now.getMonth() &&
+            date.getFullYear() === now.getFullYear()
+          );
+        })
+        .reduce((sum, d) => sum + d.amount, 0);
     },
     depositsByMonth(): {
       key: string;
