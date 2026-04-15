@@ -240,7 +240,7 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { db } from "../firebase";
-import { ref, onValue, push, set } from "firebase/database";
+import { ref, onValue, push, set, update } from "firebase/database";
 
 interface MoneyRow {
   type: number;
@@ -343,7 +343,9 @@ export default defineComponent({
     onValue(depositsRef, (snapshot) => {
       if (snapshot.exists()) {
         const val = snapshot.val();
-        this.weeklyDeposits = Object.values(val) as WeeklyDeposit[];
+        this.weeklyDeposits = Object.entries(val)
+          .filter(([k]) => k !== "key")
+          .map(([, v]) => v) as WeeklyDeposit[];
       } else {
         this.weeklyDeposits = [];
       }
@@ -375,8 +377,8 @@ export default defineComponent({
           type: row.type,
           amount: row.amount + (this.organizeAmounts[row.type] || 0),
         }));
-        const moneyRef = ref(db, "currentMoney/rows");
-        await set(moneyRef, updatedRows);
+        const moneyRef = ref(db, "currentMoney");
+        await set(moneyRef, { rows: updatedRows, key: this.writeKey });
         this.showOrganizeDialog = false;
       } catch {
         this.organizeError = "Permission denied.";
@@ -400,9 +402,13 @@ export default defineComponent({
       }
       try {
         const depositsRef = ref(db, "weeklyDeposits");
-        await push(depositsRef, {
-          amount: this.depositForm.amount,
-          date: Date.now(),
+        const newDepositRef = push(depositsRef);
+        await update(depositsRef, {
+          [newDepositRef.key!]: {
+            amount: this.depositForm.amount,
+            date: Date.now(),
+          },
+          key: this.writeKey,
         });
         this.showDepositDialog = false;
         this.depositForm = { amount: 0 };
