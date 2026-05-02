@@ -8,7 +8,7 @@
     >
       <span class="font-semibold text-blue-800">Total:</span>
       <span class="text-blue-900 font-bold text-lg"
-        >{{ (grandTotal + moneyInRoom).toFixed(2) }} €</span
+        >{{ netTotal.toFixed(2) }} €</span
       >
     </div>
 
@@ -88,41 +88,61 @@
           <span>{{ grandTotal.toFixed(2) }} €</span>
         </div>
 
-        <table class="w-full border-collapse text-sm sm:text-base mt-2">
-          <thead>
-            <tr class="bg-gray-100">
-              <th class="border border-gray-300 px-3 py-3 text-left">Type</th>
-              <th class="border border-gray-300 px-3 py-3 text-right">
-                Amount
-              </th>
-              <th class="border border-gray-300 px-3 py-3 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="loading">
-              <td
-                colspan="3"
-                class="border border-gray-300 px-3 py-6 text-center text-gray-400"
-              >
-                Loading...
-              </td>
-            </tr>
-            <tr
-              v-else
-              v-for="row in rowsWithTotal"
-              :key="row.type"
-              class="active:bg-gray-100"
-            >
-              <td class="border border-gray-300 px-3 py-3">{{ row.type }} €</td>
-              <td class="border border-gray-300 px-3 py-3 text-right">
-                {{ row.amount }}
-              </td>
-              <td class="border border-gray-300 px-3 py-3 text-right">
-                {{ row.total.toFixed(2) }} €
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="mt-2">
+          <button
+            @click="treasurerOpen = !treasurerOpen"
+            class="flex items-center gap-1 text-sm text-gray-500 py-1"
+          >
+            <span>{{ treasurerOpen ? "▾" : "▸" }}</span>
+            <span>Currency breakdown</span>
+          </button>
+          <div
+            v-if="treasurerOpen"
+            class="mt-1 border border-gray-200 rounded-lg overflow-hidden"
+          >
+            <table class="w-full border-collapse text-sm sm:text-base">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="border border-gray-300 px-3 py-3 text-left">
+                    Type
+                  </th>
+                  <th class="border border-gray-300 px-3 py-3 text-right">
+                    Amount
+                  </th>
+                  <th class="border border-gray-300 px-3 py-3 text-right">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loading">
+                  <td
+                    colspan="3"
+                    class="border border-gray-300 px-3 py-6 text-center text-gray-400"
+                  >
+                    Loading...
+                  </td>
+                </tr>
+                <tr
+                  v-else
+                  v-for="row in rowsWithTotal"
+                  :key="row.type"
+                  class="active:bg-gray-100"
+                >
+                  <td class="border border-gray-300 px-3 py-3">
+                    {{ row.type }} €
+                  </td>
+                  <td class="border border-gray-300 px-3 py-3 text-right">
+                    {{ row.amount }}
+                  </td>
+                  <td class="border border-gray-300 px-3 py-3 text-right">
+                    {{ row.total.toFixed(2) }} €
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </section>
     </div>
     <button
@@ -234,6 +254,65 @@
         </div>
       </div>
     </div>
+    <!-- expanse tracker -->
+    <hr class="my-5" />
+    <section>
+      <h2 class="text-base font-semibold mb-3">Add Expense</h2>
+      <div class="space-y-2 mb-3">
+        <input
+          v-model.number="expenseForm.amount"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Amount (€)"
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
+        />
+        <input
+          v-model="expenseForm.reason"
+          type="text"
+          placeholder="Reason"
+          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
+        />
+      </div>
+      <p v-if="expenseError" class="mt-2 text-sm text-red-500">
+        {{ expenseError }}
+      </p>
+      <button
+        @click="saveExpense"
+        :disabled="!writeKey"
+        class="w-full py-3 bg-red-600 text-white text-base font-medium rounded-xl active:bg-red-800 sm:hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Add Expense
+      </button>
+    </section>
+
+    <!-- expanse list -->
+    <section class="mt-5">
+      <h2 class="text-base font-semibold mb-3">Expenses</h2>
+      <div class="border border-gray-200 rounded-lg overflow-hidden">
+        <div
+          v-if="expenses.length === 0"
+          class="px-3 py-3 text-sm text-gray-400"
+        >
+          No expenses yet.
+        </div>
+        <div
+          v-for="(expense, i) in expenses"
+          :key="i"
+          class="flex justify-between items-center px-4 py-3 text-sm border-b border-gray-100 last:border-0 bg-white"
+        >
+          <div class="flex flex-col">
+            <span class="font-medium">{{ expense.reason }}</span>
+            <span class="text-gray-400 text-xs">{{
+              formatDepositDate(expense.date)
+            }}</span>
+          </div>
+          <span class="font-medium text-red-600"
+            >-{{ expense.amount.toFixed(2) }} €</span
+          >
+        </div>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -245,6 +324,12 @@ import { ref, onValue, push, set, update } from "firebase/database";
 interface MoneyRow {
   type: number;
   amount: number;
+}
+
+interface Expense {
+  amount: number;
+  reason: string;
+  date: number | string;
 }
 
 interface WeeklyDeposit {
@@ -264,6 +349,7 @@ export default defineComponent({
       loading: true,
       weeklyDeposits: [] as WeeklyDeposit[],
       depositsOpen: false,
+      treasurerOpen: false,
       openMonths: {} as Record<string, boolean>,
       showOrganizeDialog: false,
       organizeAmounts: {} as Record<number, number>,
@@ -274,6 +360,9 @@ export default defineComponent({
       writeKey: "",
       saveError: "",
       saveSuccess: false,
+      expenseForm: { amount: 0, reason: "" },
+      expenses: [] as Expense[],
+      expenseError: "",
     };
   },
   computed: {
@@ -303,6 +392,12 @@ export default defineComponent({
           );
         })
         .reduce((sum, d) => sum + d.amount, 0);
+    },
+    netTotal(): number {
+      return this.grandTotal + this.moneyInRoom - this.allExpenses;
+    },
+    allExpenses(): number {
+      return this.expenses.reduce((sum, e) => sum + e.amount, 0);
     },
     depositsByMonth(): {
       key: string;
@@ -350,6 +445,21 @@ export default defineComponent({
         this.weeklyDeposits = [];
       }
     });
+
+    const expensesRef = ref(db, "expenses");
+    onValue(expensesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const val = snapshot.val();
+        this.expenses = (Object.entries(val) as [string, Expense][])
+          .filter(([k]) => k !== "key")
+          .map(([, v]) => v);
+        this.expenses.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+        );
+      } else {
+        this.expenses = [];
+      }
+    });
   },
   methods: {
     async saveMoney() {
@@ -393,6 +503,28 @@ export default defineComponent({
         month: "short",
         year: "numeric",
       });
+    },
+    async saveExpense() {
+      this.expenseError = "";
+      if (!this.expenseForm.amount || !this.expenseForm.reason.trim()) {
+        this.expenseError = "Please fill in both fields.";
+        return;
+      }
+      try {
+        const expensesRef = ref(db, "expenses");
+        const newRef = push(expensesRef);
+        await update(expensesRef, {
+          [newRef.key!]: {
+            amount: this.expenseForm.amount,
+            reason: this.expenseForm.reason.trim(),
+            date: Date.now(),
+          },
+          key: this.writeKey,
+        });
+        this.expenseForm = { amount: 0, reason: "" };
+      } catch {
+        this.expenseError = "Permission denied.";
+      }
     },
     async saveDeposit() {
       this.depositError = "";
