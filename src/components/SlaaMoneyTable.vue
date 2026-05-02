@@ -254,38 +254,7 @@
         </div>
       </div>
     </div>
-    <!-- expanse tracker -->
     <hr class="my-5" />
-    <section>
-      <h2 class="text-base font-semibold mb-3">Add Expense</h2>
-      <div class="space-y-2 mb-3">
-        <input
-          v-model.number="expenseForm.amount"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Amount (€)"
-          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
-        />
-        <input
-          v-model="expenseForm.reason"
-          type="text"
-          placeholder="Reason"
-          class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
-        />
-      </div>
-      <p v-if="expenseError" class="mt-2 text-sm text-red-500">
-        {{ expenseError }}
-      </p>
-      <button
-        @click="saveExpense"
-        :disabled="!writeKey"
-        class="w-full py-3 bg-red-600 text-white text-base font-medium rounded-xl active:bg-red-800 sm:hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        Add Expense
-      </button>
-    </section>
-
     <!-- expanse list -->
     <section class="mt-5">
       <h2 class="text-base font-semibold mb-3">Expenses</h2>
@@ -313,6 +282,66 @@
         </div>
       </div>
     </section>
+    <!-- expanse tracker -->
+    <hr class="my-5" />
+    <section>
+      <button
+        @click="showExpenseDialog = true"
+        :disabled="!writeKey"
+        class="w-full py-3 bg-red-600 text-white text-base font-medium rounded-xl active:bg-red-800 sm:hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Add Expense
+      </button>
+    </section>
+    <!-- Expense dialog -->
+    <div
+      v-if="showExpenseDialog"
+      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+    >
+      <div class="bg-white rounded-2xl w-full max-w-sm p-6">
+        <h2 class="text-lg font-semibold mb-1">Add Expense</h2>
+        <p class="text-sm text-gray-400 mb-4">{{ currentDate }}</p>
+        <div class="space-y-3 mb-5">
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Amount (€)</label>
+            <input
+              v-model.number="expenseForm.amount"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+          <div>
+            <label class="block text-sm text-gray-600 mb-1">Reason</label>
+            <input
+              v-model="expenseForm.reason"
+              type="text"
+              placeholder="What was it for?"
+              class="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+          </div>
+        </div>
+        <p v-if="expenseError" class="mb-3 text-sm text-red-500">
+          {{ expenseError }}
+        </p>
+        <div class="flex gap-3">
+          <button
+            @click="showExpenseDialog = false"
+            class="flex-1 py-2 border border-gray-300 rounded-xl text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            @click="saveExpense"
+            class="flex-1 py-2 bg-red-600 text-white rounded-xl text-sm font-medium active:bg-red-800 sm:hover:bg-red-700 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -360,6 +389,7 @@ export default defineComponent({
       writeKey: "",
       saveError: "",
       saveSuccess: false,
+      showExpenseDialog: false,
       expenseForm: { amount: 0, reason: "" },
       expenses: [] as Expense[],
       expenseError: "",
@@ -521,6 +551,7 @@ export default defineComponent({
           },
           key: this.writeKey,
         });
+        this.showExpenseDialog = false;
         this.expenseForm = { amount: 0, reason: "" };
       } catch {
         this.expenseError = "Permission denied.";
